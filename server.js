@@ -1,12 +1,17 @@
 // Dependencies
 var express = require("express");
 var mongojs = require("mongojs");
+
+
 // Require axios and cheerio. This makes the scraping possible
 var axios = require("axios");
 var cheerio = require("cheerio");
 
 // Initialize Express
 var app = express();
+
+// Make public a static folder
+app.use(express.static("public"));
 
 // Database configuration
 var databaseUrl = "scraper";
@@ -25,6 +30,7 @@ app.get("/", function (req, res) {
 
 // Scrape data from one site and place it into the mongodb db
 app.get("/scrape", function (req, res) {
+
   // Make a request via axios for the news section of `ycombinator`
   axios.get("https://www.npr.org/sections/news/").then(function (response) {
     // Load the html body from axios into cheerio
@@ -45,35 +51,41 @@ app.get("/scrape", function (req, res) {
           // Save the text and href of each link enclosed in the current element
           var imgage = $(element).attr("src");
 
-          // If this found element had both a title and a link
-          if (title && link) {
-            // Insert the data in the scrapedData db
-            db.scrapedData.insert({
-              title,
-              link,
-              teaser,
-              imgage
-            },
-              function (err, inserted) {
-                if (err) {
-                  // Log the error if one is encountered during the query
-                  console.log(err);
-                }
-                else {
-                  // Otherwise, log the inserted data
-                  console.log(inserted);
-                }
-              });
-          }
 
+          $("span.date").each(function (i, element) {
+            // Save the text and href of each link enclosed in the current element
+            var date = $(element).text();
+
+            // If this found element had both a title and a link
+            if (title && link) {
+              // Insert the data in the scrapedData db
+              db.scrapedData.insert({
+                title,
+                link,
+                teaser,
+                imgage,
+                date
+              },
+                function (err, inserted) {
+                  if (err) {
+                    // Log the error if one is encountered during the query
+                    console.log(err);
+                  }
+                  else {
+                    // Otherwise, log the inserted data
+                    console.log(inserted);
+                  }
+                });
+            }
+
+          })
         })
       });
-    });
-
-    // Send a "Scrape Complete" message to the browser
-    res.send("Scrape Complete");
+    })
   });
 
+  // Send a "Scrape Complete" message to the browser
+  res.send("Scrape Complete");
 });
 
 // Listen on port 3000
