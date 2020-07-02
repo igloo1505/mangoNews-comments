@@ -1,14 +1,27 @@
 // Dependencies
 var express = require("express");
-var mongojs = require("mongojs");
+var logger = require("morgan");
+var mongoose = require("mongoose");
 
 
 // Require axios and cheerio. This makes the scraping possible
 var axios = require("axios");
 var cheerio = require("cheerio");
 
+// Require all models
+var db = require("./models");
+
 // Initialize Express
 var app = express();
+
+// Configure middleware
+
+// Use morgan logger for logging requests
+app.use(logger("dev"));
+
+// Parse request body as JSON
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 // Make public a static folder
 app.use(express.static("public"));
@@ -18,10 +31,8 @@ var databaseUrl = "scraper";
 var collections = ["scrapedData"];
 
 // Hook mongojs configuration to the db variable
-var db = mongojs(databaseUrl, collections);
-db.on("error", function (error) {
-  console.log("Database Error:", error);
-});
+mongoose.connect("mongodb://localhost/unit18Populater", { useNewUrlParser: true });
+
 
 // Main route (simple Hello World Message)
 app.get("/", function (req, res) {
@@ -37,56 +48,47 @@ app.get("/scrape", function (req, res) {
     var $ = cheerio.load(response.data);
     // For each element with a "title" class
     $(".title").each(function (i, element) {
-      // Save the text and href of each link enclosed in the current element
-      var title = $(element).children("a").text();
-      var link = $(element).children("a").attr("href");
+      var result = {}; //empty result object
+
+      // Add the text and href of every link, and save them as properties of the result object
+      result.title = $(this).children("a").text();
+      result.link = $(this).children("a").attr("href");
 
       // For each element with a "teaser" class
       $(".teaser").each(function (i, element) {
-        var teaser = $(element).children("a").text();
+        //Add the text and href of every link, and save them as properties of the result object
+        result.teaser = $(this).children("a").text();
 
 
-        // For each element with a "title" class
+        // For each element with a "img.respArchListImg" class
         $("img.respArchListImg").each(function (i, element) {
           // Save the text and href of each link enclosed in the current element
-          var imgage = $(element).attr("src");
+          result.imgage = $(this).attr("src");
 
 
           $("span.date").each(function (i, element) {
             // Save the text and href of each link enclosed in the current element
-            var date = $(element).text();
+            result.date = $(this).text();
 
-            // If this found element had both a title and a link
-            if (title && link) {
-              // Insert the data in the scrapedData db
-              db.scrapedData.insert({
-                title,
-                link,
-                teaser,
-                imgage,
-                date
-              },
-                function (err, inserted) {
-                  if (err) {
-                    // Log the error if one is encountered during the query
-                    console.log(err);
-                  }
-                  else {
-                    // Otherwise, log the inserted data
-                    console.log(inserted);
-                  }
-                });
-            }
 
-          })
-        })
-      });
-    })
-  });
-
-  // Send a "Scrape Complete" message to the browser
-  res.send("Scrape Complete");
+            db.Article.create(result)
+              .then(function (dbArticle) {
+                console.log(dbArticle)
+              })
+              .catch(function (err) {
+                console.log(err)
+              })
+          });
+        }
+        )
+      })
+    });
+    // Send a "Scrape Complete" message to the browser
+    res.send("Scrape Complete");
+  })
 });
+
+
 
 // Listen on port 3000
 app.listen(8080, function () {
