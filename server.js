@@ -80,8 +80,7 @@ app.get("/scrape", async (req, res) => {
       // !! Uncomment out this line below once your database is connected
       // await newArticle.save();
     });
-    // res.send("some other shit");
-    res.send("some random shit");
+    res.send("Some shit was scraped");
   } catch (error) {
     res.status(500).send("Ah shit");
   }
